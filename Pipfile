@@ -18,6 +18,8 @@ uvicorn = "*"
 streamlit = "*"
 streamlit-chat = "*"
 tqdm = "*"
+bl = "*"
+requests = "*"
 
 [dev-packages]
 

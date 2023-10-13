@@ -4,6 +4,9 @@ from backend.core import run_llm
 import streamlit as st
 from streamlit_chat import message
 
+# 사용할 라이브러리 import, 정보 등록
+import requests
+import json
 
 def create_sources_string(source_urls: Set[str]) -> str:
     if not source_urls:
@@ -16,7 +19,7 @@ def create_sources_string(source_urls: Set[str]) -> str:
     return sources_string
 
 
-st.header("LangChain🦜🔗 Udemy Course- Helper Bot")
+st.header("LangChain🦜🔗 Helper Bot")
 if (
     "chat_answers_history" not in st.session_state
     and "user_prompt_history" not in st.session_state
@@ -45,8 +48,8 @@ if prompt:
         )
 
         st.session_state.chat_history.append((prompt, generated_response["answer"]))
-        st.session_state.user_prompt_history.append(prompt)
-        st.session_state.chat_answers_history.append(formatted_response)
+        st.session_state["user_prompt_history"].append(prompt)
+        st.session_state["chat_answers_history"].append(formatted_response)
 
 if st.session_state["chat_answers_history"]:
     for generated_response, user_query in zip(

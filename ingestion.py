@@ -1,20 +1,24 @@
 import os
 
-from langchain.document_loaders import ReadTheDocsLoader
+from langchain.document_loaders import ReadTheDocsLoader, DirectoryLoader
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Pinecone
 import pinecone
 
+from consts import INDEX_NAME
+
 pinecone.init(
     api_key=os.environ["PINECONE_API_KEY"],
     environment=os.environ["PINECONE_ENVIRONMENT_REGION"],
 )
-INDEX_NAME = "langchain-doc-index"
-
 
 def ingest_docs():
-    loader = ReadTheDocsLoader(path="langchain-docs/langchain.readthedocs.io/en/latest", encoding="utf-8")
+    const loader = DirectoryLoader.load(path="langchain-docs/langchain.readthedocs.io/en/latest", encoding="utf-8")
+
+
+
+
     raw_documents = loader.load()
     print(f"loaded {len(raw_documents)} documents")
     text_splitter = RecursiveCharacterTextSplitter(
