@@ -10,7 +10,6 @@ black = "*"
 tiktoken = "*"
 openai = "*"
 pinecone-client = "*"
-unstructured = "*"
 nltk = "*"
 fastapi = "*"
 jinja2 = "*"
@@ -20,6 +19,8 @@ streamlit-chat = "*"
 tqdm = "*"
 bl = "*"
 requests = "*"
+unstructured = {extras = ["docx"], version = "*"}
+docx2txt = "*"
 
 [dev-packages]
 
