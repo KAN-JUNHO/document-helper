@@ -5,25 +5,20 @@ name = "pypi"
 
 [packages]
 langchain = "*"
-beautifulsoup4 = "*"
-black = "*"
-tiktoken = "*"
 openai = "*"
-pinecone-client = "*"
-nltk = "*"
-fastapi = "*"
-jinja2 = "*"
-uvicorn = "*"
 streamlit = "*"
+black = "*"
+pinecone-client = "*"
+stream-chat = "*"
 streamlit-chat = "*"
-tqdm = "*"
-bl = "*"
-requests = "*"
-unstructured = {extras = ["docx"], version = "*"}
+faiss-cpu = "*"
+tiktoken = "*"
 docx2txt = "*"
+unstructured = "*"
+docx = "*"
+python-docx = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.11"
-python_full_version = "3.11.0"

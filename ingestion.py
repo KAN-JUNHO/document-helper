@@ -1,9 +1,12 @@
 import os
 
-from langchain.document_loaders import ReadTheDocsLoader, Docx2txtLoader,UnstructuredWordDocumentLoader
+from langchain.document_loaders import ReadTheDocsLoader, Docx2txtLoader, UnstructuredWordDocumentLoader
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter,TextSplitter
+from langchain.vectorstores import FAISS
 from langchain.vectorstores import Pinecone
+from langchain.chains import RetrievalQA
+from langchain.llms import OpenAI
 import pinecone
 
 from consts import INDEX_NAME
@@ -13,10 +16,11 @@ pinecone.init(
     environment=os.environ["PINECONE_ENVIRONMENT_REGION"],
 )
 
-def ingest_docs():
 
+def ingest_docs():
     # loader = ReadTheDocsLoader(path="langchain-docs/langchain.readthedocs.io/en/latest", encoding="utf-8")
-    loader2 = UnstructuredWordDocumentLoader("langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales_english.docx")
+    loader2 = UnstructuredWordDocumentLoader(
+        "langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales_english.docx", encodings='utf-8')
 
     # raw_documents1 = loader.load()
     raw_documents2 = loader2.load()
@@ -26,7 +30,7 @@ def ingest_docs():
 
     raw_documents = raw_documents2
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", " ", ""]
+        chunk_size=1000, chunk_overlap=500, separators=["\n\n", "\n", " ", ""]
     )
     documents = text_splitter.split_documents(raw_documents)
     for doc in documents:
@@ -39,8 +43,8 @@ def ingest_docs():
     Pinecone.from_documents(documents, embeddings, index_name=INDEX_NAME)
     print("****Loading to vectorestore done ***")
 
-def ingest_docs_koera():
 
+def ingest_docs_korea():
     # loader = ReadTheDocsLoader(path="langchain-docs/langchain.readthedocs.io/en/latest", encoding="utf-8")
     loader2 = UnstructuredWordDocumentLoader("langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales.docx")
 
@@ -54,6 +58,7 @@ def ingest_docs_koera():
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", " ", ""]
     )
+
     documents = text_splitter.split_documents(raw_documents)
     for doc in documents:
         new_url = doc.metadata["source"]
@@ -62,13 +67,16 @@ def ingest_docs_koera():
 
     embeddings = OpenAIEmbeddings()
     print(f"Going to add {len(documents)} to Pinecone")
-    Pinecone.from_documents(documents, embeddings, index_name=INDEX_NAME)
+     # Pinecone.from_documents(documents, embeddings, index_name=INDEX_NAME)
+    vectorstore = FAISS.from_documents(documents, embeddings)
+    vectorstore.save_local("faiss_index_react")
     print("****Loading to vectorestore done ***")
 
-def ingest_docs_english():
 
+def ingest_docs_english():
     # loader = ReadTheDocsLoader(path="langchain-docs/langchain.readthedocs.io/en/latest", encoding="utf-8")
-    loader2 = UnstructuredWordDocumentLoader("langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales_english.docx")
+    loader2 = UnstructuredWordDocumentLoader(
+        "langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales_english.docx")
 
     # raw_documents1 = loader.load()
     raw_documents2 = loader2.load()
@@ -87,9 +95,14 @@ def ingest_docs_english():
         doc.metadata.update({"source": new_url})
 
     embeddings = OpenAIEmbeddings()
+
     print(f"Going to add {len(documents)} to Pinecone")
-    Pinecone.from_documents(documents, embeddings, index_name=INDEX_NAME)
+    # Pinecone.from_documents(documents, embeddings, index_name=INDEX_NAME)
+    vectorstore = FAISS.from_documents(documents, embeddings)
+    vectorstore.save_local("faiss_index_react")
     print("****Loading to vectorestore done ***")
+
+
 def ingest_docs_query():
     english_question1 = "What did the mountain spirit turn into?"
     korean_question1 = "산신령은 무엇으로 변신했는가?"
@@ -105,13 +118,20 @@ def ingest_docs_query():
     # 각 질문을 임베딩하고 고유한 ID를 생성
     embeddings = OpenAIEmbeddings()  # OpenAI 임베딩 모델 인스턴스화 (이 부분은 실제 사용하는 임베딩 모델에 맞춰 수정해야 함)
 
-    Pinecone.from_texts(questions, embeddings, index_name=INDEX_NAME)
+    # Pinecone.from_texts(questions, embeddings, index_name=INDEX_NAME)
+    vectorstore = FAISS.from_documents(questions, embeddings)
+    vectorstore.save_local("faiss_index_react")
     print("****Loading to vectorestore done ***")
-    
 
-
+def FAISS_load():
+    embeddings = OpenAIEmbeddings()
+    new_vectorestore = FAISS.load_local("faiss_index_react",embeddings)
+    qa = RetrievalQA.from_chain_type(llm=OpenAI(),chain_type="stuff",retriever=new_vectorestore.as_retriever())
+    res = qa.run("산신령은 무엇으로 변신했어?")
+    print(res)
 if __name__ == "__main__":
     # ingest_docs()
-    ingest_docs_koera()
-    ingest_docs_english()
-    ingest_docs_query()
+    ingest_docs_korea()
+    # ingest_docs_english()
+    # ingest_docs_query()
+    # FAISS_load()

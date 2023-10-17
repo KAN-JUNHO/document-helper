@@ -1,12 +1,13 @@
 from typing import Set
 
-from backend.core import run_llm
+from backend.core import run_llm, run_llm_FAISS
 import streamlit as st
 from streamlit_chat import message
 
 # 사용할 라이브러리 import, 정보 등록
 import requests
 import json
+
 
 def create_sources_string(source_urls: Set[str]) -> str:
     if not source_urls:
@@ -36,7 +37,7 @@ prompt = st.text_input("Prompt", placeholder="Enter your message here...") or st
 
 if prompt:
     with st.spinner("Generating response..."):
-        generated_response = run_llm(
+        generated_response = run_llm_FAISS(
             query=prompt, chat_history=st.session_state["chat_history"]
         )
 
@@ -61,4 +62,3 @@ if st.session_state["chat_answers_history"]:
             is_user=True,
         )
         message(generated_response)
-
