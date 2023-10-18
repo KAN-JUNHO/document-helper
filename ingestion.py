@@ -1,5 +1,6 @@
 import os
 
+from langchain.chat_models import ChatOpenAI
 from langchain.document_loaders import ReadTheDocsLoader, Docx2txtLoader, UnstructuredWordDocumentLoader
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter,TextSplitter
@@ -46,7 +47,7 @@ def ingest_docs():
 
 def ingest_docs_korea():
     # loader = ReadTheDocsLoader(path="langchain-docs/langchain.readthedocs.io/en/latest", encoding="utf-8")
-    loader2 = UnstructuredWordDocumentLoader("langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales.docx")
+    loader2 = UnstructuredWordDocumentLoader("langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/fairy_tales.docx")
 
     # raw_documents1 = loader.load()
     raw_documents2 = loader2.load()
@@ -124,14 +125,26 @@ def ingest_docs_query():
     print("****Loading to vectorestore done ***")
 
 def FAISS_load():
+    chat = ChatOpenAI(
+        verbose=True,
+        temperature=0,
+    )
     embeddings = OpenAIEmbeddings()
-    new_vectorestore = FAISS.load_local("faiss_index_react",embeddings)
-    qa = RetrievalQA.from_chain_type(llm=OpenAI(),chain_type="stuff",retriever=new_vectorestore.as_retriever())
-    res = qa.run("산신령은 무엇으로 변신했어?")
+    new_vectorestore = FAISS.load_local("faiss_index_react", embeddings)
+    qa = RetrievalQA.from_chain_type(llm=chat, chain_type="map_rerank", retriever=new_vectorestore.as_retriever())
+
+    # print(new_vectorestore['index_to_docsotre_id'])
+
+    res = qa.run("헨젤과 그레텔 이야기해줘")
+    res2 = qa.run("헨젤과 그레텔에서 고양이가 나와?")
+    res3 = qa.run("고양이 나오는 동화 전부다 이야기 해줘")
+
     print(res)
+    print(res2)
+    print(res3)
 if __name__ == "__main__":
     # ingest_docs()
-    ingest_docs_korea()
+    # ingest_docs_korea()
     # ingest_docs_english()
     # ingest_docs_query()
-    # FAISS_load()
+    FAISS_load()

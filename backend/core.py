@@ -47,6 +47,7 @@ def run_llm_FAISS(query: str, chat_history: List[Dict[str, Any]] = []):
     new_vectorestore = FAISS.load_local("faiss_index_react", embeddings)
     qa = ConversationalRetrievalChain.from_llm(
         llm=chat,
+        chain_type="map_reduce",
         retriever=new_vectorestore.as_retriever(),
         return_source_documents=True,
         verbose=True,
