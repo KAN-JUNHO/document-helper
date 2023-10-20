@@ -17,6 +17,7 @@ docx2txt = "*"
 unstructured = "*"
 docx = "*"
 python-docx = "*"
+sentence-transformers = "*"
 
 [dev-packages]
 

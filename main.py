@@ -1,6 +1,6 @@
 from typing import Set
 
-from backend.core import run_llm, run_llm_FAISS
+from backend.core import run_llm, run_llm_hugging
 import streamlit as st
 from streamlit_chat import message
 
@@ -37,7 +37,7 @@ prompt = st.text_input("Prompt", placeholder="Enter your message here...") or st
 
 if prompt:
     with st.spinner("Generating response..."):
-        generated_response = run_llm_FAISS(
+        generated_response = run_llm_hugging(
             query=prompt, chat_history=st.session_state["chat_history"]
         )
 
