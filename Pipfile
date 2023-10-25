@@ -18,6 +18,10 @@ unstructured = "*"
 docx = "*"
 python-docx = "*"
 sentence-transformers = "*"
+gpt4all = "*"
+google-cloud-aiplatform = "*"
+llama-cpp-pythonpip = "*"
+install = "*"
 
 [dev-packages]
 

@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 from langchain.embeddings import (
     HuggingFaceInferenceAPIEmbeddings,
     HuggingFaceEmbeddings,
+    GPT4AllEmbeddings,
 )
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
@@ -49,12 +50,43 @@ def run_llm_OPENAI(query: str, chat_history: List[Dict[str, Any]] = []):
         temperature=0,
     )
     new_vectorestore = FAISS.load_local(
-        "faiss_index_react/HuggingFaceEmbeddings", embeddings
+        "faiss_index_react/OpenAIEmbeddings", embeddings
     )
     qa = ConversationalRetrievalChain.from_llm(
         llm=chat,
-        retriever=new_vectorestore.as_retriever(),
+
+        retriever=new_vectorestore.as_retriever(
+            search_type="mmr",
+            search_kwargs={"k": 3, "fetch_k": 10}
+            # search_type="similarity_score_threshold", search_kwargs={'score_threshold': 0.8}
+            # search_kwargs={'k': 1}
+        ),
+        # chain_type="map_reduce",
         return_source_documents=True,
+        verbose=True,
+    )
+
+    return qa({"question": query, "chat_history": chat_history})
+
+
+def run_llm_OPENAI_GPT4(query: str, chat_history: List[Dict[str, Any]] = []):
+    embeddings = GPT4AllEmbeddings(openai_api_key=os.environ["OPENAI_API_KEY"])
+
+    chat = ChatOpenAI(
+        verbose=True,
+        temperature=0,
+    )
+
+    new_vectorestore = FAISS.load_local(
+        "faiss_index_react/GPT4AllEmbeddings", embeddings
+    )
+    qa = ConversationalRetrievalChain.from_llm(
+        llm=chat,
+        chain_type="map_reduce",
+        retriever=new_vectorestore.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={"score_threshold": 0.8},
+        ),
         verbose=True,
     )
 

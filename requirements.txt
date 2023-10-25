@@ -1,0 +1,4 @@
+numpy~=1.26.1
+langchain~=0.0.320
+streamlit~=1.27.2
+requests~=2.31.0

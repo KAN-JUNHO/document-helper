@@ -1,10 +1,5 @@
 import math
-import os
-from decimal import Decimal
-from urllib import response
 
-import openai
-import numpy as np
 from numpy import dot
 from numpy.linalg import norm
 

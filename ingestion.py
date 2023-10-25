@@ -1,10 +1,14 @@
 import os
+
 import pinecone
 from langchain.document_loaders import UnstructuredWordDocumentLoader
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
+from langchain.embeddings import (
+    OpenAIEmbeddings,
+    HuggingFaceEmbeddings,
+    GPT4AllEmbeddings,
+)
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS, Pinecone
-from consts import INDEX_NAME
+from langchain.vectorstores import FAISS
 
 # Pinecone 초기화
 pinecone.init(
@@ -13,9 +17,8 @@ pinecone.init(
 )
 
 
-def load_and_process_docs(
-    path, encodings="utf-8", chunk_size=1000, chunk_overlap=500, separators=None
-):
+def load_and_process_docs(path, encodings, chunk_size, chunk_overlap, separators):
+
     loader = UnstructuredWordDocumentLoader(path, encodings=encodings)
     raw_documents = loader.load()
     print(f"loaded {len(raw_documents)} documents")
@@ -25,40 +28,57 @@ def load_and_process_docs(
     )
     documents = text_splitter.split_documents(raw_documents)
 
-    for doc in documents:
-        new_url = doc.metadata["source"].replace("langchain-docs", "https:/")
-        doc.metadata.update({"source": new_url})
+    # for doc in documents:
+    #     new_url = doc.metadata["source"].replace("langchain-docs", "https:/")
+    #     doc.metadata.update({"source": new_url})
 
     return documents
 
 
-def ingest_docs_korea():
+def ingest_docs_korea(size, overlap):
+    chunk_size = size
+    if overlap == 0:
+        chunk_overlap = overlap
+    else:
+        chunk_overlap = int(size/overlap)
     documents = load_and_process_docs(
-        "langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/fairy_tales.docx",
-        chunk_overlap=200,
-        separators=["\n\n", "\n", " ", "."],
+        path="langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/fairy_tales.docx",
+        encodings="utf-8",
+        chunk_size=size,
+        chunk_overlap=overlap,
+        separators=["."]
     )
 
+    # pipeline("feature-extraction", model="google/canine-s")
 
+    # tokenizer = AutoTokenizer.from_pretrained("google/canine-s")
+    # model = AutoModel.from_pretrained("google/canine-s")
+    #
+    # recognizer = pipeline("gogamza/kobart-base-v2", model=model, tokenizer=tokenizer)
 
     embeddings_list = [
-        # OpenAIEmbeddings(),
-
-        HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-large"),
-        HuggingFaceEmbeddings(model_name="google/canine-s"),
-        HuggingFaceEmbeddings(model_name="gogamza/kobart-base-v2"),
-        HuggingFaceEmbeddings(model_name="nielsr/lilt-xlm-roberta-base"),
-        HuggingFaceEmbeddings(model_name="Blaxzter/LaBSE-sentence-embeddings"),
-
+        OpenAIEmbeddings()
     ]
 
     for embedding in embeddings_list:
         vectorstore = FAISS.from_documents(documents, embedding)
         embedding_name = embedding.__class__.__name__
-        vectorstore.save_local(f"faiss_index_react/{embedding_name}_{embedding.model_name}")
+        if hasattr(embedding, "model_name"):
+            vectorstore.save_local(
+                f"faiss_index_react/{embedding_name}_{embedding.model_name}"
+            )
+        else:
+            vectorstore.save_local(f"faiss_index_react/{embedding_name}/{chunk_size}_{chunk_overlap}")
         print(f"Loading to vectorestore {embedding_name} done")
 
 
 if __name__ == "__main__":
     # ingest_docs_english()
-    ingest_docs_korea()
+    chunk_size = [100,200,500,1000,2000]
+    chunk_overlap = [0,10]
+
+    for size in chunk_size:
+        for overlap in chunk_overlap:
+            ingest_docs_korea(size,overlap)
+
+    # ingest_docs_korea()
