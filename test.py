@@ -14,7 +14,7 @@ def load_vectorstore(directory, embeddings):
     return FAISS.load_local(directory, embeddings)
 
 
-def run_queries(qa_model,type):
+def run_queries(qa_model,type,chain_type):
     queries = [
         "헨젤과 그레텔 이야기를 요약해줘"
         # "헨젤과 그레텔에서 마녀가 나와?",
@@ -29,79 +29,41 @@ def run_queries(qa_model,type):
     ]
 
     for query in queries:
-        print(f"질문 {type}: "+query)
+        # print(f"질문 {type}: "+query)
         response = qa_model.run(query)
-        print(f"답변 {type}: "+response)
+        print(f"답변 {type}_{chain_type}: "+response)
 
-
-
-def FAISS_load_OpenAI(chunk_size,chunk_overlap):
-    print(f"FAISS_load_OpenAI chunk_size : {chunk_size}  chunk_size : {chunk_overlap}")
-    chat_model = initialize_chat_model()
-    embeddings = OpenAIEmbeddings()
-    vectorstore = load_vectorstore(f"faiss_index_react/OpenAIEmbeddings/{chunk_size}_{chunk_overlap}", embeddings)
-
+def process_with_search_kwargs(chat_model, vectorstore, search_kwargs):
+    print(f"search_kwargs={search_kwargs}")
     for type in ["mmr", "similarity"]:
-        qa_model = RetrievalQA.from_chain_type(
-            llm=chat_model,
-            retriever=vectorstore.as_retriever(
-                search_type=type,
-                search_kwargs={"k": 2, "fetch_k": 10}
-            ),
-
-        )
-
-        run_queries(qa_model,type)
-
-
-def FAISS_load_OpenAI_lambda_mult(chunk_size,chunk_overlap):
-    print(f"FAISS_load_OpenAI_lambda_mult chunk_size : {chunk_size}  chunk_size : {chunk_overlap}")
-    chat_model = initialize_chat_model()
-    embeddings = OpenAIEmbeddings()
-    vectorstore = load_vectorstore(f"faiss_index_react/OpenAIEmbeddings/{chunk_size}_{chunk_overlap}", embeddings)
-
-    for type in ["mmr", "similarity"]:
-        qa_model = RetrievalQA.from_chain_type(
-            llm=chat_model,
-            retriever=vectorstore.as_retriever(
-                search_type=type,
-                search_kwargs={'k': 2, 'lambda_mult': 0.25}
-            ),
-
-        )
-
-        run_queries(qa_model,type)
-
-def FAISS_load_OpenAI_search_kwargs(chunk_size,chunk_overlap):
-    print(f"FAISS_load_OpenAI_search_kwargs chunk_size : {chunk_size}  chunk_size : {chunk_overlap}")
-    chat_model = initialize_chat_model()
-    embeddings = OpenAIEmbeddings()
-    vectorstore = load_vectorstore(f"faiss_index_react/OpenAIEmbeddings/{chunk_size}_{chunk_overlap}", embeddings)
-
-    for type in ["mmr", "similarity"]:
-        qa_model = RetrievalQA.from_chain_type(
-            llm=chat_model,
-            retriever=vectorstore.as_retriever(
-                search_type=type,
-                search_kwargs={'k': 2}
-            ),
-
-        )
-
-        run_queries(qa_model,type)
-
+        for chain_type in ["stuff", "map_reduce", "refine"]:
+            qa_model = RetrievalQA.from_chain_type(
+                llm=chat_model,
+                retriever=vectorstore.as_retriever(
+                    search_type=type,
+                    search_kwargs=search_kwargs
+                ),
+                chain_type=chain_type
+            )
+            run_queries(qa_model, type, chain_type)
 
 if __name__ == "__main__":
-    chunk_size = [100,200,500,1000,2000]
+    chunk_size = [100,200,500,1000,1500,1800,2000]
     chunk_overlap = [0,10]
 
     for size in chunk_size:
         for overlap in chunk_overlap:
+            chat_model = initialize_chat_model()
+            embeddings = OpenAIEmbeddings()
             if overlap == 0:
-                FAISS_load_OpenAI(size,overlap)
-                FAISS_load_OpenAI_lambda_mult(size,overlap)
-                FAISS_load_OpenAI_search_kwargs(size,overlap)
+                vectorstore = load_vectorstore(f"faiss_index_react/OpenAIEmbeddings/{size}_{overlap}", embeddings)
+                print(f"chunk_size={size}, chunk_overlap={overlap}")
             else:
-                FAISS_load_OpenAI(size, int(size/overlap))
-                FAISS_load_OpenAI_lambda_mult(size, int(size/overlap))
-                FAISS_load_OpenAI_search_kwargs(size, int(size/overlap))
+                vectorstore = load_vectorstore(f"faiss_index_react/OpenAIEmbeddings/{size}_{int(size/overlap)}", embeddings)
+                print(f"chunk_size={size}, chunk_overlap={int(size/overlap)}")
+
+            process_with_search_kwargs(chat_model, vectorstore, {"k": 2, "fetch_k": 10})
+            process_with_search_kwargs(chat_model, vectorstore, {'k': 2, 'lambda_mult': 0.25})
+            process_with_search_kwargs(chat_model, vectorstore, {'k': 2})
+
+            print("---------------------------------------------------------------")

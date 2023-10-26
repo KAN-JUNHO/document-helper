@@ -74,7 +74,7 @@ def ingest_docs_korea(size, overlap):
 
 if __name__ == "__main__":
     # ingest_docs_english()
-    chunk_size = [100,200,500,1000,2000]
+    chunk_size = [1200,1500]
     chunk_overlap = [0,10]
 
     for size in chunk_size:
