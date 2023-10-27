@@ -1,3 +1,5 @@
+import pandas as pd
+
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import (
@@ -5,6 +7,8 @@ from langchain.embeddings import (
 )
 from langchain.vectorstores.faiss import FAISS
 
+size = None  # 초기화
+overlap = None  # 초기화
 
 def initialize_chat_model():
     return ChatOpenAI(verbose=True, temperature=0)
@@ -14,7 +18,7 @@ def load_vectorstore(directory, embeddings):
     return FAISS.load_local(directory, embeddings)
 
 
-def run_queries(qa_model,type,chain_type):
+def run_queries(qa_model,search_type,chain_type,search_kwargs):
     queries = [
         "헨젤과 그레텔 이야기를 요약해줘"
         # "헨젤과 그레텔에서 마녀가 나와?",
@@ -31,28 +35,32 @@ def run_queries(qa_model,type,chain_type):
     for query in queries:
         # print(f"질문 {type}: "+query)
         response = qa_model.run(query)
-        print(f"답변 {type}_{chain_type}: "+response)
+        print(f"답변 {search_type}_{chain_type}: "+response)
+        results.append({"size" : f"{size}","overlap" : f"{overlap}","search_type" : f"{search_type}","chain_type" : f"{chain_type}", "search_kwargs" : f"{search_kwargs}", "질문": query, "답변": response})
 
 def process_with_search_kwargs(chat_model, vectorstore, search_kwargs):
     print(f"search_kwargs={search_kwargs}")
-    for type in ["mmr", "similarity"]:
+    for search_type in ["mmr", "similarity"]:
         for chain_type in ["stuff", "map_reduce", "refine"]:
             qa_model = RetrievalQA.from_chain_type(
                 llm=chat_model,
                 retriever=vectorstore.as_retriever(
-                    search_type=type,
+                    search_type=search_type,
                     search_kwargs=search_kwargs
                 ),
                 chain_type=chain_type
             )
-            run_queries(qa_model, type, chain_type)
+            run_queries(qa_model, search_type, chain_type,search_kwargs)
 
 if __name__ == "__main__":
-    chunk_size = [100,200,500,1000,1500,1800,2000]
+    chunk_size = [100,200,500,1000,1800]
     chunk_overlap = [0,10]
-
+    # chunk_size=[100]
+    # chunk_overlap=[0]
+    results = []
     for size in chunk_size:
         for overlap in chunk_overlap:
+
             chat_model = initialize_chat_model()
             embeddings = OpenAIEmbeddings()
             if overlap == 0:
@@ -67,3 +75,7 @@ if __name__ == "__main__":
             process_with_search_kwargs(chat_model, vectorstore, {'k': 2})
 
             print("---------------------------------------------------------------")
+
+    # 결과를 DataFrame으로 변환하고 엑셀 파일로 저장
+    df = pd.DataFrame(results)
+    df.to_excel("C:\\Users\\Admin\\PycharmProjects\\document-helper\\faiss_index_react\\results.xlsx", index=False, engine='openpyxl')
