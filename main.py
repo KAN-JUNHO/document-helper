@@ -49,31 +49,43 @@ settings_column, chat_column = st.columns([1, 2])
 
 with settings_column:
     st.subheader("Settings")
-    search_type = st.selectbox("Select search type", ["mmr", "similarity","similarity_score_threshold","lambda_mult"])
+    search_type = st.selectbox("Select search type", ["mmr", "similarity","similarity_score_threshold"])
     chunk_size = st.selectbox("Select chunk size", [100, 200, 500, 1000, 1800])
     chunk_overlap = st.selectbox("Select chunk overlap", [0, 10])
 
-    k = st.text_input("k number here :", value=4)
-    fetch_k = st.text_input("fetch_k number here:", value=20)
-    similarity_score_threshold = st.text_input("similarity_score_threshold number here:", value=20)
-    lambda_mult = st.text_input("lambda_mult float 0~1 here:", value=0.5)
+    search_kwargs = {}
+
+    # 선택된 검색 유형에 따라 다른 입력 필드 표시
+    if search_type == "similarity":
+        k = st.text_input("k number here :", value="4")
+        search_kwargs["k"] = int(k)
+
+    elif search_type == "similarity_score_threshold":
+        k = st.text_input("k number here :", value="4")
+        score_threshold = st.text_input("similarity_score_threshold number here:", value="0.8")
+        search_kwargs["k"] = int(k)
+        search_kwargs["score_threshold"] = float(score_threshold)
+
+    elif search_type == "mmr":
+        k = st.text_input("k number here :", value="4")
+        fetch_k = st.text_input("fetch_k number here:", value="20")
+        lambda_mult = st.text_input("lambda_mult float 0~1 here:", value="0.5")
+        search_kwargs["k"] = int(k)
+        search_kwargs["fetch_k"] = int(fetch_k)
+        search_kwargs["lambda_mult"] = float(lambda_mult)
+
     chain_type = st.selectbox("Select chainType", ["stuff", "map_reduce", "refine"])
 
     # 토글 생성
     st.session_state["show_k"] = st.checkbox("Show K value", value=st.session_state["show_k"])
     st.session_state["show_answer"] = st.checkbox("Show Answer", value=st.session_state["show_answer"])
 
+# ... [생략] ...
+
 with chat_column:
     # prompt 값을 세션 상태에서 가져오거나 기본값으로 초기화
     prompt = st.text_input("Prompt", value=st.session_state.get("prompt", ""), placeholder="Enter your message here...")
     st.session_state["prompt"] = prompt  # 사용자의 입력을 세션 상태에 저장
-
-    search_kwargs = {
-        "k": int(k),
-        "fetch_k": int(fetch_k),
-        "score_threshold": float(similarity_score_threshold),
-        "lambda_mult": float(lambda_mult)
-    }
 
     if st.button("Submit"):
         with st.spinner("Generating response..."):
@@ -91,8 +103,7 @@ with chat_column:
             st.session_state["user_prompt_history"].append(prompt)
             st.session_state["chat_answers_history"].append(formatted_response)
             source_docs_list = generated_response["source_documents"][0 : int(k)]
-            for doc in source_docs_list:
-                st.session_state["source_documents"].append(doc.page_content)
+            st.session_state["source_documents"] = source_docs_list  # 리스트를 교체하여 내용 업데이트
 
         for idx, (generated_response, user_query) in enumerate(
                 zip(st.session_state["chat_answers_history"], st.session_state["user_prompt_history"])):
