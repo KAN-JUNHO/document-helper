@@ -42,7 +42,15 @@ def run_llm(query: str, chat_history: List[Dict[str, Any]] = []):
     return qa({"question": query, "chat_history": chat_history})
 
 
-def run_llm_OPENAI(query: str, chat_history: List[Dict[str, Any]] = []):
+def run_llm_OPENAI(
+    query: str,
+    search_type=None,
+    chat_history: List[Dict[str, Any]] = [],
+    chunk_size=None,
+    chunk_overlap=None,
+    search_kwargs=None,
+    chain_type=None,
+):
     embeddings = OpenAIEmbeddings(openai_api_key=os.environ["OPENAI_API_KEY"])
 
     chat = ChatOpenAI(
@@ -50,18 +58,17 @@ def run_llm_OPENAI(query: str, chat_history: List[Dict[str, Any]] = []):
         temperature=0,
     )
     new_vectorestore = FAISS.load_local(
-        "faiss_index_react/OpenAIEmbeddings", embeddings
+        f"faiss_index_react/OpenAIEmbeddings/{chunk_size}_{chunk_overlap}", embeddings
     )
     qa = ConversationalRetrievalChain.from_llm(
         llm=chat,
-
         retriever=new_vectorestore.as_retriever(
-            search_type="mmr",
-            search_kwargs={"k": 3, "fetch_k": 10}
-            # search_type="similarity_score_threshold", search_kwargs={'score_threshold': 0.8}
-            # search_kwargs={'k': 1}
+            search_type=search_type,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            search_kwargs=search_kwargs,
         ),
-        # chain_type="map_reduce",
+        chain_type=chain_type,
         return_source_documents=True,
         verbose=True,
     )
@@ -69,44 +76,4 @@ def run_llm_OPENAI(query: str, chat_history: List[Dict[str, Any]] = []):
     return qa({"question": query, "chat_history": chat_history})
 
 
-def run_llm_OPENAI_GPT4(query: str, chat_history: List[Dict[str, Any]] = []):
-    embeddings = GPT4AllEmbeddings(openai_api_key=os.environ["OPENAI_API_KEY"])
 
-    chat = ChatOpenAI(
-        verbose=True,
-        temperature=0,
-    )
-
-    new_vectorestore = FAISS.load_local(
-        "faiss_index_react/GPT4AllEmbeddings", embeddings
-    )
-    qa = ConversationalRetrievalChain.from_llm(
-        llm=chat,
-        chain_type="map_reduce",
-        retriever=new_vectorestore.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={"score_threshold": 0.8},
-        ),
-        verbose=True,
-    )
-
-    return qa({"question": query, "chat_history": chat_history})
-
-
-def run_llm_hugging(query: str, chat_history: List[Dict[str, Any]] = []):
-    embeddings = HuggingFaceEmbeddings(
-        api_key="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",
-        model_name="sentence-transformers/all-MiniLM-l6-v2",
-    )
-
-    new_vectorestore = FAISS.load_local(
-        "faiss_index_react/HuggingFaceEmbeddings", embeddings
-    )
-
-    qa = ConversationalRetrievalChain.from_llm(
-        retriever=new_vectorestore.as_retriever(),
-        return_source_documents=True,
-        verbose=True,
-    )
-
-    return qa({"question": query, "chat_history": chat_history})

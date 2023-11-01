@@ -18,7 +18,6 @@ pinecone.init(
 
 
 def load_and_process_docs(path, encodings, chunk_size, chunk_overlap, separators):
-
     loader = UnstructuredWordDocumentLoader(path, encodings=encodings)
     raw_documents = loader.load()
     print(f"loaded {len(raw_documents)} documents")
@@ -40,13 +39,13 @@ def ingest_docs_korea(size, overlap):
     if overlap == 0:
         chunk_overlap = overlap
     else:
-        chunk_overlap = int(size/overlap)
+        chunk_overlap = int(size / overlap)
     documents = load_and_process_docs(
         path="langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/fairy_tales.docx",
         encodings="utf-8",
         chunk_size=size,
         chunk_overlap=overlap,
-        separators=["."]
+        separators=["."],
     )
 
     # pipeline("feature-extraction", model="google/canine-s")
@@ -56,9 +55,7 @@ def ingest_docs_korea(size, overlap):
     #
     # recognizer = pipeline("gogamza/kobart-base-v2", model=model, tokenizer=tokenizer)
 
-    embeddings_list = [
-        OpenAIEmbeddings()
-    ]
+    embeddings_list = [OpenAIEmbeddings()]
 
     for embedding in embeddings_list:
         vectorstore = FAISS.from_documents(documents, embedding)
@@ -68,17 +65,19 @@ def ingest_docs_korea(size, overlap):
                 f"faiss_index_react/{embedding_name}_{embedding.model_name}"
             )
         else:
-            vectorstore.save_local(f"faiss_index_react/{embedding_name}/{chunk_size}_{chunk_overlap}")
+            vectorstore.save_local(
+                f"faiss_index_react/{embedding_name}/{chunk_size}_{chunk_overlap}"
+            )
         print(f"Loading to vectorestore {embedding_name} done")
 
 
 if __name__ == "__main__":
     # ingest_docs_english()
-    chunk_size = [1200,1500]
-    chunk_overlap = [0,10]
+    chunk_size = [1200, 1500]
+    chunk_overlap = [0, 10]
 
     for size in chunk_size:
         for overlap in chunk_overlap:
-            ingest_docs_korea(size,overlap)
+            ingest_docs_korea(size, overlap)
 
     # ingest_docs_korea()

@@ -17,11 +17,11 @@ if __name__ == "__main__":
 
     good_qa_chain = LLMChain(llm=llm, prompt=good_qa_prompt)
 
-    a=good_qa_chain.run(question="Salt, rice, chicken, sugar")
+    a = good_qa_chain.run(question="Salt, rice, chicken, sugar")
 
-    if a=='Yes':
+    if a == "Yes":
         print("Yes")
-    elif a == 'No.':
-        print('No.')
+    elif a == "No.":
+        print("No.")
 
     print(a)
