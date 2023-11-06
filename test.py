@@ -67,6 +67,8 @@ def process_with_search_kwargs(chat_model, vectorstore, search_kwargs):
 if __name__ == "__main__":
     chunk_size = [100, 200, 500, 1000, 1800]
     chunk_overlap = [0, 10]
+    # 지정해줘야함 이름은
+    document_name = "";
     # chunk_size=[100]
     # chunk_overlap=[0]
     results = []
@@ -76,7 +78,7 @@ if __name__ == "__main__":
             embeddings = OpenAIEmbeddings()
             if overlap == 0:
                 vectorstore = load_vectorstore(
-                    f"faiss_index_react/OpenAIEmbeddings/{size}_{overlap}", embeddings
+                    f"ffaiss_index_react/{document_name}/{chunk_size}_{chunk_overlap}", embeddings
                 )
                 print(f"chunk_size={size}, chunk_overlap={overlap}")
             else:

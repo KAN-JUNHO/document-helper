@@ -4,8 +4,6 @@ import pinecone
 from langchain.document_loaders import UnstructuredWordDocumentLoader
 from langchain.embeddings import (
     OpenAIEmbeddings,
-    HuggingFaceEmbeddings,
-    GPT4AllEmbeddings,
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
@@ -34,14 +32,14 @@ def load_and_process_docs(path, encodings, chunk_size, chunk_overlap, separators
     return documents
 
 
-def ingest_docs_korea(size, overlap):
+def ingest_docs_korea(size, overlap, document_name):
     chunk_size = size
     if overlap == 0:
         chunk_overlap = overlap
     else:
         chunk_overlap = int(size / overlap)
     documents = load_and_process_docs(
-        path="langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/fairy_tales.docx",
+        path="langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales.docx",
         encodings="utf-8",
         chunk_size=size,
         chunk_overlap=overlap,
@@ -62,22 +60,25 @@ def ingest_docs_korea(size, overlap):
         embedding_name = embedding.__class__.__name__
         if hasattr(embedding, "model_name"):
             vectorstore.save_local(
-                f"faiss_index_react/{embedding_name}_{embedding.model_name}"
+                f"faiss_index_react/{document_name}/{embedding.model_name}/{chunk_size}_{chunk_overlap}"
             )
         else:
             vectorstore.save_local(
-                f"faiss_index_react/{embedding_name}/{chunk_size}_{chunk_overlap}"
+                f"faiss_index_react/{document_name}/{chunk_size}_{chunk_overlap}"
             )
-        print(f"Loading to vectorestore {embedding_name} done")
+        print(f"Loading to vectorestore/{document_name}/{embedding_name}/ done")
+
+
+def chunk_make(document_name):
+    chunk_size = [100, 200, 500, 1000, 1800]
+    chunk_overlap = [0, 10]
+    for size in chunk_size:
+        for overlap in chunk_overlap:
+            ingest_docs_korea(size, overlap,document_name)
 
 
 if __name__ == "__main__":
     # ingest_docs_english()
-    chunk_size = [1200, 1500]
-    chunk_overlap = [0, 10]
-
-    for size in chunk_size:
-        for overlap in chunk_overlap:
-            ingest_docs_korea(size, overlap)
+    chunk_make()
 
     # ingest_docs_korea()
