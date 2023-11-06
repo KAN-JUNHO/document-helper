@@ -1,13 +1,14 @@
-from typing import Set
-import time
-import shutil
-
+import json
 import os
+import shutil
+import time
+from typing import Set
+
 import streamlit as st
 from streamlit_chat import message
-from backend.core import run_llm_OPENAI
-from docx import Document
 
+from backend.core import run_llm_OPENAI
+from db.DatabaseManager import DatabaseManager
 from ingestion import chunk_make
 
 # CSS for styling
@@ -18,7 +19,8 @@ st.markdown(
             max-width: 80%;
         }
     </style>
-""", unsafe_allow_html=True
+""",
+    unsafe_allow_html=True,
 )
 
 
@@ -38,9 +40,14 @@ for state, default_value in [
     ("chat_history", []),
     ("source_documents", []),
     ("show_k", True),
-    ("show_answer", True)
+    ("show_answer", True),
 ]:
     st.session_state.setdefault(state, default_value)
+
+if "db_manager" not in st.session_state:
+    st.session_state["db_manager"] = DatabaseManager("chat_messages.db")
+if 'show_chat_history' not in st.session_state:
+    st.session_state.show_chat_history = False
 
 # Layout: Settings and Chat columns
 settings_column, chat_column = st.columns([1, 2])
@@ -48,21 +55,24 @@ settings_column, chat_column = st.columns([1, 2])
 
 def chat_up():
     # Display messages
-    unique_time = str(time.time()).replace('.', '')
+    unique_time = str(time.time()).replace(".", "")
     # 사용자의 질문과 봇의 응답, 그리고 문서 K 값을 순서대로 표시합니다.
     for idx, (user_query, resp) in enumerate(
-            zip(st.session_state["user_prompt_history"], st.session_state["chat_answers_history"])):
+        zip(
+            st.session_state["user_prompt_history"],
+            st.session_state["chat_answers_history"],
+        )
+    ):
         # 사용자의 질문을 표시합니다.
         message(user_query, is_user=True, key=f"user_msg_{idx}_{unique_time}")
 
         # 해당 질문에 대한 문서 K 값을 표시합니다.
         if st.session_state["show_k"]:
-
             # 문서 K 값이 리스트의 리스트라면 아래와 같이 접근합니다.
             # 여기서는 각 질문에 대한 문서 K 리스트를 가정합니다.
             for doc_k in st.session_state["source_documents"]:
                 st.markdown(
-                    f'''
+                    f"""
                     <div style="background-color: rgba(255, 0, 0, 0.3);
                                 padding: 10px;
                                 border-radius: 5px;
@@ -70,14 +80,34 @@ def chat_up():
                                 margin: 10px 0;">
                         반환된 문서 K : {doc_k}
                     </div>
-                    ''', unsafe_allow_html=True
+                    """,
+                    unsafe_allow_html=True,
                 )
 
         # 봇의 응답을 표시합니다.
         if st.session_state["show_answer"]:
             message(resp, is_user=False, key=f"bot_msg_{idx}_{unique_time}")
 
+def save_chat_history_to_db():
+    """전체 채팅 기록을 데이터베이스에 저장합니다."""
+    db_manager = st.session_state["db_manager"]
+    for user_query, resp, source_docs in zip(
+        st.session_state["user_prompt_history"],
+        st.session_state["chat_answers_history"],
+        st.session_state["source_documents"]
+    ):
+        # source_docs가 리스트라고 가정하고 직접 JSON 문자열로 직렬화
+        db_manager.insert_message(user_query, resp, source_docs)
 
+# 채팅 기록을 위한 자리 표시자
+chat_history_placeholder = st.empty()
+def load_chat_history():
+    db_manager = st.session_state["db_manager"]
+    st.json(db_manager.fetch_all_messages())
+
+
+def clear_chat_history():
+    chat_history_placeholder.empty()
 # Settings Column
 with settings_column:
     st.subheader("Settings")
@@ -108,19 +138,33 @@ with settings_column:
             for file in files:
                 file_name_without_extension, _ = os.path.splitext(file)
                 # 체크박스 위젯을 생성하고, 현재 상태(is_checked)를 얻습니다.
-                is_checked = st.checkbox(f"{file_name_without_extension}", key=file_name_without_extension)
+                is_checked = st.checkbox(
+                    f"{file_name_without_extension}", key=file_name_without_extension
+                )
 
                 # 체크박스가 선택되었는지 여부에 따라 selected_files 리스트를 업데이트합니다.
                 if is_checked:
-                    if file_name_without_extension not in st.session_state["selected_files"]:
-                        st.session_state["selected_files"].append(file_name_without_extension)
+                    if (
+                        file_name_without_extension
+                        not in st.session_state["selected_files"]
+                    ):
+                        st.session_state["selected_files"].append(
+                            file_name_without_extension
+                        )
                 else:
-                    if file_name_without_extension in st.session_state["selected_files"]:
-                        st.session_state["selected_files"].remove(file_name_without_extension)
+                    if (
+                        file_name_without_extension
+                        in st.session_state["selected_files"]
+                    ):
+                        st.session_state["selected_files"].remove(
+                            file_name_without_extension
+                        )
         except Exception as e:
             st.write(f"An error occurred: {e}")
 
-    search_type = st.selectbox("Select search type", ["mmr", "similarity", "similarity_score_threshold"])
+    search_type = st.selectbox(
+        "Select search type", ["mmr", "similarity", "similarity_score_threshold"]
+    )
     chunk_size = st.selectbox("Select chunk size", [100, 200, 500, 1000, 1800])
     chunk_overlap = st.selectbox("Select chunk overlap", [0, 10])
 
@@ -129,26 +173,44 @@ with settings_column:
     search_kwargs["k"] = int(k)
 
     if search_type == "similarity_score_threshold":
-        score_threshold = st.text_input("similarity_score_threshold 변수 입력:", value="0.8")
+        score_threshold = st.text_input(
+            "similarity_score_threshold 변수 입력:", value="0.8"
+        )
         search_kwargs["score_threshold"] = float(score_threshold)
 
     elif search_type == "mmr":
         fetch_k = st.text_input("fetch_k 변수 입력:", value="20")
         lambda_mult = st.text_input("lambda_mult float 0~1 변수입력:", value="0.5")
-        search_kwargs.update({
-            "fetch_k": int(fetch_k),
-            "lambda_mult": float(lambda_mult)
-        })
+        search_kwargs.update(
+            {"fetch_k": int(fetch_k), "lambda_mult": float(lambda_mult)}
+        )
 
     chain_type = st.selectbox("Select chainType", ["stuff", "map_reduce", "refine"])
 
     st.session_state["show_k"] = st.checkbox("K 값", value=st.session_state["show_k"])
-    st.session_state["show_answer"] = st.checkbox("응답", value=st.session_state["show_answer"])
+    st.session_state["show_answer"] = st.checkbox(
+        "응답", value=st.session_state["show_answer"]
+    )
 
 # Chat Column
 
+# 애플리케이션 시작 시 데이터베이스 매니저 인스턴스 생성
+db_manager = DatabaseManager("chat_messages.db")
+
+
+
 
 with chat_column:
+    if st.button('채팅 기록 저장'):
+        save_chat_history_to_db()
+        st.success('채팅 기록이 데이터베이스에 저장되었습니다.')
+    if st.button('대화 목록 불러오기/숨기기'):
+        st.session_state.show_chat_history = not st.session_state.show_chat_history
+        if st.session_state.show_chat_history:
+            load_chat_history()
+        else:
+            clear_chat_history()
+        
     prompt = st.text_input("Prompt", value="", placeholder="Enter your message here...")
     answer = []
     if st.button("Submit"):
@@ -162,21 +224,26 @@ with chat_column:
                     chunk_overlap=chunk_overlap,
                     search_kwargs=search_kwargs,
                     chain_type=chain_type,
-                    selected_files=st.session_state["selected_files"]
+                    selected_files=st.session_state["selected_files"],
+                    similarity_search_with_score=None
+
                 )
 
                 index = 0
                 # 응답을 반복하며 각각 처리합니다.
                 for response in responses:
-                    if 'answer' in response:
-
+                    if "answer" in response:
                         # 중복된 prompt를 추가하지 않습니다.
                         # if prompt not in st.session_state["user_prompt_history"]:
                         st.session_state["user_prompt_history"].append(prompt)
-                        st.session_state["chat_answers_history"].append(response["answer"])
+                        st.session_state["chat_answers_history"].append(
+                            response["answer"]
+                        )
                         # 응답에 소스 문서가 포함되어 있다면 처리합니다.
-                        if 'source_documents' in response:
-                            st.session_state["source_documents"].append(response["source_documents"])
+                        if "source_documents" in response:
+                            st.session_state["source_documents"].append(
+                                response["source_documents"]
+                            )
                         st.session_state["last_response"] = response["answer"]
                     # chat_up()  # 모든 응답을 처리한 후에 한 번만 chat_up을 호출합니다.
                     # index += 1
@@ -186,12 +253,17 @@ with chat_column:
 
     # Display messages
     if st.session_state.get("last_response"):
-        unique_time = str(time.time()).replace('.', '')
+        unique_time = str(time.time()).replace(".", "")
 
         for idx, (user_query, resp, source_docs) in enumerate(
-                zip(st.session_state["user_prompt_history"], st.session_state["chat_answers_history"],
-                    st.session_state["source_documents"])):
+            zip(
+                st.session_state["user_prompt_history"],
+                st.session_state["chat_answers_history"],
+                st.session_state["source_documents"],
+            )
+        ):
             message(user_query, is_user=True, key=f"user_msg_{idx}_{unique_time}")
+
 
             response_and_docs = resp  # 봇의 응답을 시작으로 합니다.
 
@@ -199,7 +271,7 @@ with chat_column:
             if st.session_state["show_k"]:
                 for k in st.session_state["source_documents"][idx]:
                     st.markdown(
-                        f'''
+                        f"""
                           <div style="background-color: rgba(255, 0, 0, 0.3);
                                       padding: 10px;
                                       border-radius: 5px;
@@ -207,11 +279,15 @@ with chat_column:
                                       margin: 10px 0;">
                               반환된 문서 K : {k}
                           </div>
-                          ''', unsafe_allow_html=True
+                          """,
+                        unsafe_allow_html=True,
                     )
-
 
             # 응답이 표시되어야 하는 경우 메시지를 표시합니다.
             if st.session_state["show_answer"]:
-                message(response_and_docs, is_user=False, key=f"bot_msg_{idx}_{unique_time}")
+                message(
+                    response_and_docs, is_user=False, key=f"bot_msg_{idx}_{unique_time}"
+                )
 
+# 애플리케이션이 종료될 때 데이터베이스 연결을 닫습니다.
+db_manager.close()

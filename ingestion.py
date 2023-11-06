@@ -74,7 +74,7 @@ def chunk_make(document_name):
     chunk_overlap = [0, 10]
     for size in chunk_size:
         for overlap in chunk_overlap:
-            ingest_docs_korea(size, overlap,document_name)
+            ingest_docs_korea(size, overlap, document_name)
 
 
 if __name__ == "__main__":
