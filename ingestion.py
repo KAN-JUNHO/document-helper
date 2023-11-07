@@ -46,13 +46,6 @@ def ingest_docs_korea(size, overlap, document_name):
         separators=["."],
     )
 
-    # pipeline("feature-extraction", model="google/canine-s")
-
-    # tokenizer = AutoTokenizer.from_pretrained("google/canine-s")
-    # model = AutoModel.from_pretrained("google/canine-s")
-    #
-    # recognizer = pipeline("gogamza/kobart-base-v2", model=model, tokenizer=tokenizer)
-
     embeddings_list = [OpenAIEmbeddings()]
 
     for embedding in embeddings_list:
