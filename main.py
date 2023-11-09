@@ -5,6 +5,7 @@ import time
 from typing import Set
 from uuid import uuid4
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 from streamlit_chat import message
@@ -57,6 +58,12 @@ if "session_id" not in st.session_state:
 conversation_column, settings_column, chat_column = st.columns([1, 2, 3])
 
 
+def default_converter(o):
+    if isinstance(o, np.float32):
+        return float(o)  # np.float32를 Python의 기본 float 타입으로 변환
+    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+
 def save_chat_history_to_db():
     session_id = st.session_state["session_id"]
     db_manager = st.session_state["db_manager"]
@@ -66,12 +73,21 @@ def save_chat_history_to_db():
         resp = st.session_state["chat_answers_history"][-1]
         source_docs_json = st.session_state["source_documents"][-1]
         # source_docs 리스트를 JSON 문자열로 직렬화합니다.
+        # JSON으로 직렬화
         source_docs = json.dumps(
             [
-                {"page_content": doc.page_content, "metadata": doc.metadata}
-                for doc in source_docs_json
+                {
+                    "page_content": doc.page_content,
+                    # 메타데이터의 모든 값들을 확인하고, 필요한 경우 변환 함수를 적용합니다.
+                    "metadata": {
+                        k: default_converter(v) if isinstance(v, np.float32) else v
+                        for k, v in doc.metadata.items()
+                    },
+                }
+                for doc in source_docs_json  # 가정: source_docs_json은 Document 객체의 리스트입니다.
             ],
             ensure_ascii=False,
+            default=default_converter,  # json.dumps에 변환 함수를 기본값으로 제공합니다.
         )
         fetch_k = search_kwargs.get("fetch_k", None)
         lambda_mult = search_kwargs.get("lambda_mult", None)
@@ -94,13 +110,21 @@ def save_chat_history_to_db():
             st.session_state["chat_answers_history"],
             st.session_state["source_documents"],
         ):
-            # source_docs 리스트를 JSON 문자열로 직렬화합니다.
+            # JSON으로 직렬화
             source_docs = json.dumps(
                 [
-                    {"page_content": doc.page_content, "metadata": doc.metadata}
-                    for doc in source_docs_json
+                    {
+                        "page_content": doc.page_content,
+                        # 메타데이터의 모든 값들을 확인하고, 필요한 경우 변환 함수를 적용합니다.
+                        "metadata": {
+                            k: default_converter(v) if isinstance(v, np.float32) else v
+                            for k, v in doc.metadata.items()
+                        },
+                    }
+                    for doc in source_docs_json  # 가정: source_docs_json은 Document 객체의 리스트입니다.
                 ],
                 ensure_ascii=False,
+                default=default_converter,  # json.dumps에 변환 함수를 기본값으로 제공합니다.
             )
 
             fetch_k = search_kwargs.get("fetch_k", None)
@@ -154,7 +178,7 @@ def get_messages_by_session():
                     for message in messages:
                         st.text_area(
                             f"Message ID: {message[0]}",
-                            f"User: {message[1]}\nBot: {message[2]}",
+                            f"User: {message[1]}\nBot: {message[6]}",
                             height=100,
                         )
                         st.markdown("---")
@@ -176,6 +200,10 @@ def load_chat_history():
             "ID",
             "Session ID",
             "User Query",
+            "k",
+            "fecth_k",
+            "lambda_mult",
+            "score_threshold",
             "Response",
             "Source Docs",
             "Timestamp",
@@ -350,6 +378,7 @@ with chat_column:
                 for k in st.session_state["source_documents"][idx]:
                     page_content = k.page_content
                     source = k.metadata["source"]
+                    score = k.metadata["score"]
                     file_name = source.split("/")[-1]
                     st.markdown(
                         f"""
@@ -358,7 +387,7 @@ with chat_column:
                                       border-radius: 5px;
                                       max-width: 80%;
                                       margin: 10px 0;">
-                              반환된 문서 K : {page_content}\n{file_name}
+                              반환된 문서 K : {page_content}\n\n{score}\n\n{file_name}
                           </div>
                           """,
                         unsafe_allow_html=True,

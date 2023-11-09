@@ -1,4 +1,3 @@
-import json
 import sqlite3
 
 
@@ -80,7 +79,7 @@ class DatabaseManager:
     def fetch_messages_by_session(self, session_id):
         # 주어진 세션 ID에 해당하는 메시지를 조회하는 쿼리를 실행합니다.
         self.cursor.execute(
-            """SELECT id, user_query,kwargs_json, response, source_docs, timestamp 
+            """SELECT id, user_query,k,fetch_k,lambda_mult,score_threshold, response, source_docs, timestamp 
                                FROM messages WHERE session_id = ? ORDER BY timestamp""",
             (session_id,),
         )
@@ -95,12 +94,11 @@ class DatabaseManager:
                 fetch_k,
                 lambda_mult,
                 score_threshold,
-                kwargs_json,
                 response,
-                json.loads(source_docs),
+                source_docs,
                 timestamp,
             )
-            for id, user_query, k, fetch_k, lambda_mult, score_threshold, kwargs_json, response, source_docs, timestamp in messages
+            for id, user_query, k, fetch_k, lambda_mult, score_threshold, response, source_docs, timestamp in messages
         ]
 
     def close(self):
