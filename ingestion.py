@@ -3,7 +3,7 @@ import os
 import pinecone
 from langchain.document_loaders import UnstructuredWordDocumentLoader
 from langchain.embeddings import (
-    OpenAIEmbeddings,
+    OpenAIEmbeddings, GPT4AllEmbeddings,
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
@@ -39,21 +39,23 @@ def ingest_docs_korea(size, overlap, document_name):
     else:
         chunk_overlap = int(size / overlap)
     documents = load_and_process_docs(
-        path="langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/classic_fairy_tales.docx",
+        path=f"langchain-docs/langchain.readthedocs.io/en/latest/fairy_tails/{document_name}",
         encodings="utf-8",
         chunk_size=size,
         chunk_overlap=overlap,
         separators=["."],
     )
 
-    embeddings_list = [OpenAIEmbeddings()]
+    embeddings_list = [
+        OpenAIEmbeddings(),
+    ]
 
     for embedding in embeddings_list:
         vectorstore = FAISS.from_documents(documents, embedding)
         embedding_name = embedding.__class__.__name__
-        if hasattr(embedding, "model_name"):
+        if hasattr(embedding, "model"):
             vectorstore.save_local(
-                f"faiss_index_react/{document_name}/{embedding.model_name}/{chunk_size}_{chunk_overlap}"
+                f"faiss_index_react/{document_name}/{embedding.model}/{chunk_size}_{chunk_overlap}"
             )
         else:
             vectorstore.save_local(
@@ -72,6 +74,6 @@ def chunk_make(document_name):
 
 if __name__ == "__main__":
     # ingest_docs_english()
-    chunk_make()
+    chunk_make(document_name)
 
     # ingest_docs_korea()

@@ -317,6 +317,12 @@ with conversation_column:
     get_messages_by_session()
 
 with chat_column:
+    available_chat_models = {
+        "gpt-3.5-turbo", "kfkas/Llama-2-ko-7b-Chat"
+    }
+
+    selected_chat_model = st.selectbox("챗 모델을 선택해주세요 : ", available_chat_models)
+
     if st.button("대화 목록 불러오기/숨기기"):
         st.session_state.show_chat_history = not st.session_state.show_chat_history
         if st.session_state.show_chat_history:
@@ -338,6 +344,7 @@ with chat_column:
                     search_kwargs=search_kwargs,
                     chain_type=chain_type,
                     selected_files=st.session_state["selected_files"],
+                    selected_chat_model=selected_chat_model
                 )
 
                 # 응답을 반복하며 각각 처리합니다.

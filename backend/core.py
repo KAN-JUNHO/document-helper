@@ -9,6 +9,8 @@ from langchain.schema import BaseRetriever
 from langchain.schema.document import Document
 from langchain.vectorstores import FAISS
 from pydantic import Field
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 
 
 def run_llm_OPENAI(
@@ -20,13 +22,19 @@ def run_llm_OPENAI(
     search_kwargs=None,
     chain_type=None,
     selected_files=None,
+    selected_chat_model=None
 ):
     embeddings = OpenAIEmbeddings(openai_api_key=os.environ["OPENAI_API_KEY"])
 
-    chat = ChatOpenAI(
-        verbose=True,
-        temperature=0,
-    )
+    if selected_chat_model == "gpt-3.5-turbo":
+        chat = ChatOpenAI(
+            verbose=True,
+            temperature=0,
+        )
+    elif selected_chat_model == "kfkas/Llama-2-ko-7b-Chat":
+        # tokenizer = AutoTokenizer.from_pretrained("kfkas/Llama-2-ko-7b-Chat")
+        chat = AutoModelForCausalLM.from_pretrained("kfkas/Llama-2-ko-7b-Chat")
+
     # 모든 selected_files에 대한 결과를 저장할 리스트
     responses = []
 
@@ -34,7 +42,7 @@ def run_llm_OPENAI(
         # new_vectorestore = FAISS.load_local(f"faiss_index_react/fairy_tales/{chunk_size}_{chunk_overlap}", embeddings)
 
         vectorestore_path = (
-            f"faiss_index_react/{selected_file}/{chunk_size}_{chunk_overlap}"
+            f"faiss_index_react/{selected_file}/text-embedding-ada-002/{chunk_size}_{chunk_overlap}"
         )
         new_vectorestore = FAISS.load_local(vectorestore_path, embeddings)
 
@@ -66,6 +74,24 @@ def run_llm_OPENAI(
                         k=self.search_kwargs["k"],
                         fetch_k=self.search_kwargs["fetch_k"],
                     )
+
+                    documents_with_scores = [
+                        Document(
+                            page_content=document.page_content,
+                            metadata={**document.metadata, "score": 1 - score},
+                        )
+                        for document, score in results_with_scores
+                    ]
+                    # 결과를 ConversationalRetrievalChain이 처리할 수 있는 형식으로 변환
+                elif "similarity_score_threshold" == self.search_type:
+                    results_with_scores = (
+                        new_vectorestore.similarity_search_with_relevance_scores(
+                            query=query,
+                            k=self.search_kwargs["k"],
+                            score_threshold=self.search_kwargs["score_threshold"],
+                        )
+                    )
+
                     documents_with_scores = [
                         Document(
                             page_content=document.page_content,
@@ -73,22 +99,22 @@ def run_llm_OPENAI(
                         )
                         for document, score in results_with_scores
                     ]
-                    # 결과를 ConversationalRetrievalChain이 처리할 수 있는 형식으로 변환
                 elif "mmr" == self.search_type:
                     results_with_scores = new_vectorestore.max_marginal_relevance_search_with_score_by_vector(
-                        embedding=OpenAIEmbeddings(),
+                        embedding=embeddings.embed_query(query),
                         k=self.search_kwargs["k"],
                         lambda_mult=self.search_kwargs["lambda_mult"],
                         fetch_k=self.search_kwargs["fetch_k"],
                     )
+
                     documents_with_scores = [
                         Document(
                             page_content=document.page_content,
-                            metadata={**document.metadata, "score": score},
+                            metadata={**document.metadata, "score": 1 - score},
                         )
                         for document, score in results_with_scores
                     ]
-                    # 결과를 ConversationalRetrievalChain이 처리할 수 있는 형식으로 변환
+
                 return documents_with_scores
 
         my_retriever_instance = MyConcreteRetriever(
